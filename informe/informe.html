@@ -14,6 +14,15 @@
   td.num { text-align: right; }
   pre { background: #f5f5f5; border: 1px solid #ddd; padding: 10px; overflow-x: auto; }
   code { background: #f5f5f5; padding: 1px 4px; }
+  .grafico { margin: 16px 0; max-width: 600px; }
+  .fila { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .etiqueta { width: 130px; font-size: 0.9rem; }
+  .pista { position: relative; flex: 1; height: 22px; background: #eee; border-radius: 3px; }
+  .ideal { position: absolute; top: 0; left: 0; height: 100%; background: #c9d8ef; border-radius: 3px; }
+  .real { position: absolute; top: 5px; left: 0; height: 12px; background: #2f6fca; border-radius: 3px; }
+  .valor { width: 50px; text-align: right; font-size: 0.9rem; }
+  .leyenda { font-size: 0.85rem; color: #555; }
+  .leyenda span { display: inline-block; width: 12px; height: 12px; margin: 0 4px 0 12px; vertical-align: -1px; }
 </style>
 </head>
 <body>
@@ -136,6 +145,14 @@ for (HiloAnalizador hilo : hilos) {
   Lo ideal sería que la aceleración fuera igual al número de hilos (2 o 4).
 </p>
 
+<div class="grafico">
+  <div class="fila"><div class="etiqueta">Original, 2 hilos</div><div class="pista"><div class="ideal" style="width:50%"></div><div class="real" style="width:48.5%"></div></div><div class="valor">1.94×</div></div>
+  <div class="fila"><div class="etiqueta">Original, 4 hilos</div><div class="pista"><div class="ideal" style="width:100%"></div><div class="real" style="width:92.75%"></div></div><div class="valor">3.71×</div></div>
+  <div class="fila"><div class="etiqueta">Ampliado, 2 hilos</div><div class="pista"><div class="ideal" style="width:50%"></div><div class="real" style="width:47.5%"></div></div><div class="valor">1.90×</div></div>
+  <div class="fila"><div class="etiqueta">Ampliado, 4 hilos</div><div class="pista"><div class="ideal" style="width:100%"></div><div class="real" style="width:87.25%"></div></div><div class="valor">3.49×</div></div>
+  <p class="leyenda"><span style="background:#2f6fca"></span>Aceleración obtenida <span style="background:#c9d8ef"></span>Aceleración ideal (igual al número de hilos)</p>
+</div>
+
 <!-- ============================================================ -->
 <h2>4. Análisis y respuestas</h2>
 
@@ -159,6 +176,12 @@ for (HiloAnalizador hilo : hilos) {
 <h3>3. ¿Qué sucede al incrementar el tamaño del documento?</h3>
 <p>
   El tiempo sube mucho (de unos 30 ms a más de 1.5 segundos en el secuencial), porque hay mucho más texto que recorrer.
+  El texto ampliado tiene 100 veces más texto y tardó unas <b>52 veces más</b>. Yo esperaba unas 100 veces; la diferencia
+  está en el original, cuyo tiempo cambia entre ejecuciones del programa (en otra ejecución el secuencial tardó 15.4 ms),
+  porque Java no siempre optimiza el código de la misma forma. Por eso comparo la aceleración dentro de cada conjunto
+  y no los tiempos de un conjunto contra el otro.
+</p>
+<p>
   La aceleración se mantiene parecida (≈1.9 con 2 hilos y ≈3.5 con 4), pero la ganancia en tiempo real es mucho mayor:
   con 4 hilos se ahorran unos 22 ms en el original y más de <b>1 segundo</b> en el ampliado. Es decir, el paralelismo
   vale más la pena cuanto más grande es el trabajo.
@@ -179,6 +202,20 @@ for (HiloAnalizador hilo : hilos) {
   Con poco texto, la versión paralela fue unas <b>3 a 4 veces más lenta</b>. Crear y arrancar un hilo cuesta más que contar
   unas pocas palabras. Volviendo a la comparación: si el libro tiene 2 páginas, se tarda más en repartirlo entre 4 personas
   que en contarlo uno solo.
+</p>
+
+<h3>Dificultades encontradas</h3>
+<p>
+  En mis primeras pruebas medí sin "calentar" Java y con 4 hilos obtuve una aceleración de <b>5.80</b>. Eso es imposible:
+  con 4 hilos lo máximo es 4. Revisando, me di cuenta de que Java empieza ejecutando el código de forma lenta y lo optimiza
+  después de usarlo varias veces. Como la versión secuencial se medía primero, se medía con el código todavía sin optimizar
+  y parecía más lenta de lo que era, lo que inflaba la aceleración.
+</p>
+<p>
+  Para corregirlo agregué una fase de calentamiento: antes de medir, el programa ejecuta todas las configuraciones
+  20 veces sin tomar el tiempo. Con eso la aceleración bajó a valores lógicos (3.71 y 3.49 con 4 hilos). Aprendí que
+  al medir rendimiento no basta con tomar el tiempo: hay que asegurarse de que todas las versiones se comparen en las
+  mismas condiciones.
 </p>
 
 <!-- ============================================================ -->
