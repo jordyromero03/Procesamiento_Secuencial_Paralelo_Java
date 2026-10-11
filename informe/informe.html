@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe Práctica 01 – Java Threads</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 24px 16px; color: #222; background: #fff; }
+  h1 { font-size: 1.6rem; }
+  h2 { margin-top: 36px; border-bottom: 2px solid #ddd; padding-bottom: 4px; }
+  table { border-collapse: collapse; margin: 12px 0; }
+  th, td { border: 1px solid #bbb; padding: 6px 12px; }
+  th { background: #f0f0f0; }
+  td.num { text-align: right; }
+  pre { background: #f5f5f5; border: 1px solid #ddd; padding: 10px; overflow-x: auto; }
+  code { background: #f5f5f5; padding: 1px 4px; }
+</style>
+</head>
+<body>
+
+<h1>Actividad práctica 01 – Procesamiento secuencial y paralelo de textos con Java Threads</h1>
+<p>
+  <b>Estudiante:</b> Jordy Romero<br>
+  <b>Asignatura:</b> Computación Paralela<br>
+  <b>Repositorio:</b> <a href="https://github.com/jordyromero03/Procesamiento_Secuencial_Paralelo_Java">github.com/jordyromero03/Procesamiento_Secuencial_Paralelo_Java</a>
+</p>
+
+<!-- ============================================================ -->
+<h2>1. Descripción de la solución</h2>
+
+<p>
+  Hice un programa en Java que lee el libro <i>Don Quijote de la Mancha</i> (Project Gutenberg, formato TXT)
+  y calcula tres cosas:
+</p>
+<ul>
+  <li>El número total de palabras.</li>
+  <li>Cuántas veces aparece la palabra <b>"Quijote"</b>.</li>
+  <li>Cuántas palabras contienen la secuencia <b>"ción"</b>.</li>
+</ul>
+<p>
+  Para el programa, una palabra es un grupo de letras seguidas (incluye tildes y ñ). Los espacios, signos y números
+  separan las palabras. Antes de comparar paso cada palabra a minúsculas, así "Quijote" y "QUIJOTE" cuentan igual.
+</p>
+
+<h3>Versión secuencial</h3>
+<p>Un solo hilo recorre el texto de principio a fin y va contando.</p>
+
+<h3>Versión paralela</h3>
+<p>
+  La idea es como repartir un libro entre varias personas para contar palabras: cada una cuenta su parte
+  y al final se suman los resultados.
+</p>
+<pre>
+Texto completo ──► [Bloque 1][Bloque 2][Bloque 3][Bloque 4]
+                       │         │         │         │
+                     Hilo 1    Hilo 2    Hilo 3    Hilo 4     ← start()
+                       │         │         │         │
+                       └────── join() y suma ─────────┘
+                                    │
+                             Resultado final
+</pre>
+<ol>
+  <li><b>Dividir:</b> parto el texto en bloques del mismo tamaño. Si un corte cae en medio de una palabra,
+      lo muevo hacia adelante hasta el siguiente espacio, para no partir ninguna palabra.</li>
+  <li><b>Asignar:</b> cada bloque se lo doy a un hilo (<code>HiloAnalizador</code>, que hereda de <code>Thread</code>).</li>
+  <li><b>Ejecutar:</b> arranco todos los hilos con <code>start()</code> y después espero a todos con <code>join()</code>.</li>
+  <li><b>Combinar:</b> cada hilo guarda su propio resultado; al final el programa principal los suma.</li>
+  <li><b>Comprobar:</b> en cada ejecución verifico que el resultado paralelo sea igual al secuencial.</li>
+</ol>
+
+<p>La parte más importante del código es esta:</p>
+<pre><code>// Primero arranco todos los hilos...
+for (HiloAnalizador hilo : hilos) {
+    hilo.start();
+}
+// ...y después espero a que todos terminen.
+for (HiloAnalizador hilo : hilos) {
+    hilo.join();
+}</code></pre>
+<p>
+  Los dos bucles van separados a propósito. Si hiciera <code>start()</code> y <code>join()</code> en el mismo bucle,
+  el programa esperaría a que termine un hilo antes de arrancar el siguiente, y en realidad sería secuencial.
+</p>
+<p>
+  No hace falta sincronización (<code>synchronized</code>) porque los hilos no comparten variables:
+  cada uno escribe solo en su resultado. Usé directamente la clase <code>Thread</code>, sin
+  <code>ExecutorService</code> ni <code>parallelStream()</code>.
+</p>
+
+<h3>Cómo medí los tiempos</h3>
+<ul>
+  <li>El archivo se carga en memoria <b>antes</b> de medir, así la lectura no cuenta en el tiempo.</li>
+  <li>Medí con <code>System.nanoTime()</code> solo el procesamiento, sin contar lo que se imprime en consola.</li>
+  <li>Probé con 1, 2 y 4 hilos, con el texto original y con una versión ampliada (el texto repetido 100 veces).</li>
+  <li>Cada caso lo ejecuté <b>10 veces</b> y saqué el promedio.</li>
+  <li>Antes de medir, el programa se ejecuta varias veces sin medir para "calentar" Java. Al inicio Java ejecuta el código
+      más lento y lo va optimizando, y sin este paso la primera medición sale más lenta de lo que es.</li>
+</ul>
+
+<h3>Resultados del conteo</h3>
+<table>
+  <tr><th>Conjunto</th><th>Total de palabras</th><th>"Quijote"</th><th>Palabras con "ción"</th></tr>
+  <tr><td>Original</td><td class="num">386 682</td><td class="num">2 245</td><td class="num">950</td></tr>
+  <tr><td>Ampliado (×100)</td><td class="num">38 668 200</td><td class="num">224 500</td><td class="num">95 000</td></tr>
+</table>
+<p>Con 1, 2 y 4 hilos se obtuvieron exactamente los mismos números.</p>
+
+<!-- ============================================================ -->
+<h2>2. Características del equipo</h2>
+<table>
+  <tr><th>Procesador</th><td>Intel Core i7-11800H</td></tr>
+  <tr><th>Núcleos</th><td>8 núcleos físicos / 16 hilos</td></tr>
+  <tr><th>Memoria RAM</th><td>16 GB</td></tr>
+  <tr><th>Sistema operativo</th><td>CachyOS (Linux)</td></tr>
+  <tr><th>Java</th><td>OpenJDK 21</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>3. Tabla comparativa de tiempos</h2>
+<table>
+  <tr><th>Conjunto de datos</th><th>Hilos</th><th>Tiempo promedio (ms)</th><th>Aceleración</th></tr>
+  <tr><td>Original</td><td>1 (secuencial)</td><td class="num">29.96</td><td class="num">1.00</td></tr>
+  <tr><td>Original</td><td>2</td><td class="num">15.47</td><td class="num">1.94</td></tr>
+  <tr><td>Original</td><td>4</td><td class="num">8.07</td><td class="num">3.71</td></tr>
+  <tr><td>Ampliado</td><td>1 (secuencial)</td><td class="num">1551.36</td><td class="num">1.00</td></tr>
+  <tr><td>Ampliado</td><td>2</td><td class="num">817.65</td><td class="num">1.90</td></tr>
+  <tr><td>Ampliado</td><td>4</td><td class="num">444.71</td><td class="num">3.49</td></tr>
+</table>
+<p>
+  La aceleración se calcula como <b>S = Ts / Tp</b> (tiempo secuencial ÷ tiempo paralelo).
+  Por ejemplo, S = 3.49 significa que con 4 hilos el programa fue 3.49 veces más rápido.
+  Lo ideal sería que la aceleración fuera igual al número de hilos (2 o 4).
+</p>
+
+<!-- ============================================================ -->
+<h2>4. Análisis y respuestas</h2>
+
+<h3>1. ¿Qué diferencias se observan entre los tiempos secuencial y paralelo?</h3>
+<p>
+  La versión paralela fue más rápida en todos los casos. En el texto ampliado bajó de <b>1551 ms</b> a <b>818 ms</b> con 2 hilos
+  y a <b>445 ms</b> con 4 hilos. Además, los resultados del conteo fueron exactamente iguales, así que dividir el texto no
+  causó errores.
+</p>
+
+<h3>2. ¿Cómo influye el número de hilos en el rendimiento?</h3>
+<p>
+  Con más hilos el programa es más rápido, pero no exactamente el doble cada vez. Con 2 hilos fue casi 2 veces más rápido (1.94)
+  y con 4 hilos fue unas 3.5–3.7 veces más rápido, no 4. Hay dos motivos:
+</p>
+<ul>
+  <li>Crear los hilos, arrancarlos, esperarlos y sumar los resultados toma tiempo, y esa parte no se hace más rápida con más hilos.</li>
+  <li>Todos los hilos leen el mismo texto de la memoria al mismo tiempo, así que compiten entre ellos.</li>
+</ul>
+
+<h3>3. ¿Qué sucede al incrementar el tamaño del documento?</h3>
+<p>
+  El tiempo sube mucho (de unos 30 ms a más de 1.5 segundos en el secuencial), porque hay mucho más texto que recorrer.
+  La aceleración se mantiene parecida (≈1.9 con 2 hilos y ≈3.5 con 4), pero la ganancia en tiempo real es mucho mayor:
+  con 4 hilos se ahorran unos 22 ms en el original y más de <b>1 segundo</b> en el ampliado. Es decir, el paralelismo
+  vale más la pena cuanto más grande es el trabajo.
+</p>
+
+<h3>4. ¿El procesamiento paralelo siempre es más rápido?</h3>
+<p>
+  <b>No.</b> Para comprobarlo, ejecuté el mismo programa con un fragmento de solo 2000 caracteres del libro
+  (<code>data/fragmento.txt</code>):
+</p>
+<table>
+  <tr><th>Fragmento (2000 caracteres)</th><th>Tiempo promedio (ms)</th><th>Aceleración</th></tr>
+  <tr><td>1 hilo (secuencial)</td><td class="num">0.131</td><td class="num">1.00</td></tr>
+  <tr><td>2 hilos</td><td class="num">0.451</td><td class="num">0.29</td></tr>
+  <tr><td>4 hilos</td><td class="num">0.551</td><td class="num">0.24</td></tr>
+</table>
+<p>
+  Con poco texto, la versión paralela fue unas <b>3 a 4 veces más lenta</b>. Crear y arrancar un hilo cuesta más que contar
+  unas pocas palabras. Volviendo a la comparación: si el libro tiene 2 páginas, se tarda más en repartirlo entre 4 personas
+  que en contarlo uno solo.
+</p>
+
+<!-- ============================================================ -->
+<h2>5. Conclusiones</h2>
+<ul>
+  <li>Usando <code>Thread</code> con <code>start()</code> y <code>join()</code>, el tiempo de análisis del texto grande bajó a menos
+      de un tercio con 4 hilos, con los mismos resultados que la versión secuencial.</li>
+  <li>Dividir el texto sin partir palabras y que cada hilo guarde su propio resultado permite trabajar en paralelo sin
+      sincronización y sin errores en el conteo.</li>
+  <li>Más hilos dan más velocidad, pero no de forma perfecta, porque siempre hay una parte del trabajo que no se reparte.</li>
+  <li>El paralelismo no siempre conviene: con textos muy pequeños es más lento. Vale la pena cuando hay mucho trabajo que repartir.</li>
+  <li>Para medir bien hay que cargar el archivo antes, repetir varias veces y no tener otros programas pesados abiertos.</li>
+</ul>
+
+</body>
+</html>

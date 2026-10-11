@@ -1,0 +1,7 @@
+conjunto,hilos,tiempo_promedio_ms,aceleracion
+Original,1,29.958,1.00
+Original,2,15.465,1.94
+Original,4,8.069,3.71
+Ampliado,1,1551.356,1.00
+Ampliado,2,817.650,1.90
+Ampliado,4,444.708,3.49
